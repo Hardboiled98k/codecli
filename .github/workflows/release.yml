@@ -136,4 +136,4 @@ jobs:
             --verify-tag \
             --title "CodeCLI Community $GITHUB_REF_NAME" \
             --notes-file artifacts/NOTES.md \
-            artifacts/*
+            artifacts/codecli-community-* artifacts/SHA256SUMS.txt
