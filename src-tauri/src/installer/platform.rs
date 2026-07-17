@@ -1123,7 +1123,7 @@ pub(crate) fn add_user_path_segment_windows(segment: &str) -> Result<(), String>
     let segment = validate_user_path_segment(segment)?;
     #[cfg(windows)]
     {
-        return update_user_path_segment_windows(segment, true);
+        update_user_path_segment_windows(segment, true)
     }
     #[cfg(not(windows))]
     {
@@ -1136,7 +1136,7 @@ pub(crate) fn remove_user_path_segment_windows(segment: &str) -> Result<(), Stri
     let segment = validate_user_path_segment(segment)?;
     #[cfg(windows)]
     {
-        return update_user_path_segment_windows(segment, false);
+        update_user_path_segment_windows(segment, false)
     }
     #[cfg(not(windows))]
     {
@@ -1160,7 +1160,7 @@ fn windows_path_segment_matches(left: &str, right: &str) -> bool {
 
 #[cfg(windows)]
 fn decode_windows_registry_string(bytes: &[u8]) -> Result<String, String> {
-    if bytes.len() % 2 != 0 {
+    if !bytes.len().is_multiple_of(2) {
         return Err("用户 PATH 注册表字节长度不是 UTF-16".into());
     }
     let mut units = bytes
@@ -1480,6 +1480,7 @@ pub(crate) fn generated_scheme_secret_keys() -> Result<Vec<String>, String> {
     Ok(keys.into_iter().collect())
 }
 
+#[cfg(unix)]
 fn parse_strict_node_version_directory(name: &std::ffi::OsStr) -> Option<(u64, u64, u64)> {
     let raw = name.to_str()?;
     let raw = raw.strip_prefix('v').unwrap_or(raw);
@@ -1493,6 +1494,7 @@ fn parse_strict_node_version_directory(name: &std::ffi::OsStr) -> Option<(u64, u
     Some((major, minor, patch))
 }
 
+#[cfg(unix)]
 fn trusted_nvm_node_bin(versions_root: &Path) -> Option<PathBuf> {
     let root_metadata = std::fs::symlink_metadata(versions_root).ok()?;
     if root_metadata.file_type().is_symlink() || !root_metadata.is_dir() {

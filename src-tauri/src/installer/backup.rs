@@ -114,7 +114,7 @@ fn is_symlink_or_reparse(meta: &std::fs::Metadata) -> bool {
     {
         use std::os::windows::fs::MetadataExt;
         // FILE_ATTRIBUTE_REPARSE_POINT
-        return meta.file_attributes() & 0x0000_0400 != 0;
+        meta.file_attributes() & 0x0000_0400 != 0
     }
     #[cfg(not(windows))]
     false
