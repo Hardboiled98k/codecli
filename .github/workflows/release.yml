@@ -22,8 +22,10 @@ jobs:
         include:
           - label: macOS-arm64
             os: macos-14
+            bundles: dmg
           - label: Windows-x64
             os: windows-2022
+            bundles: nsis
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
@@ -59,7 +61,10 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Build unsigned bundles
         shell: bash
-        run: pnpm tauri build --ci
+        # Windows ships NSIS only: the WiX/MSI path needs light.exe, which the
+        # hosted runner cannot link reliably and which no signed release depends
+        # on. macOS ships the DMG. Both are unsigned; users verify by SHA-256.
+        run: pnpm tauri build --ci --bundles ${{ matrix.bundles }}
       - name: Collect and checksum artifacts
         shell: bash
         run: |
@@ -75,10 +80,8 @@ jobs:
               ;;
             Windows-x64)
               setup="$(find "$bundle_dir/nsis" -maxdepth 1 -name '*.exe' -print -quit)"
-              msi="$(find "$bundle_dir/msi" -maxdepth 1 -name '*.msi' -print -quit)"
-              [[ -n "$setup" && -n "$msi" ]] || { echo "Missing nsis or msi bundle" >&2; exit 1; }
+              [[ -n "$setup" ]] || { echo "No nsis setup produced" >&2; exit 1; }
               cp "$setup" "out/codecli-community-${version}-windows-x64-setup.exe"
-              cp "$msi" "out/codecli-community-${version}-windows-x64.msi"
               ;;
           esac
           cd out
