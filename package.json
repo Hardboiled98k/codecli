@@ -22,14 +22,14 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.6.0",
-    "tailwindcss": "^4.3.2",
-    "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "@vitejs/plugin-react": "^6.0.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~7.0.2",
+    "vite": "^8.1.5"
   },
   "description": "开源的 Claude Code 与 Codex CLI 桌面安装、配置、诊断和维护工具",
   "license": "MPL-2.0",
