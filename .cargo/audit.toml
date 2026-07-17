@@ -1,0 +1,49 @@
+# Public dependency-audit policy.
+#
+# Keep `cargo audit --deny warnings` fail-closed.  The exceptions below are
+# exact RustSec advisory IDs already present in the current Tauri 2 dependency
+# graph; a new advisory, a new crate, or an ID change still fails CI.
+#
+# Review deadline: 2026-10-15 (or immediately after a Tauri upgrade).
+
+[advisories]
+ignore = [
+  # Linux-only GTK3 stack. CodeCLI is released for macOS and Windows only;
+  # The release gate parses `cargo tree --edges normal,build` for arm64/x86_64
+  # macOS and x86_64 Windows and proves these crates are absent from every
+  # shipped target graph (not merely present somewhere in Cargo.lock).
+  "RUSTSEC-2024-0411", # gdkwayland-sys: unmaintained
+  "RUSTSEC-2024-0412", # gdk: unmaintained
+  "RUSTSEC-2024-0413", # atk: unmaintained
+  "RUSTSEC-2024-0414", # gdkx11-sys: unmaintained
+  "RUSTSEC-2024-0415", # gtk: unmaintained
+  "RUSTSEC-2024-0416", # atk-sys: unmaintained
+  "RUSTSEC-2024-0417", # gdkx11: unmaintained
+  "RUSTSEC-2024-0418", # gdk-sys: unmaintained
+  "RUSTSEC-2024-0419", # gtk3-macros: unmaintained
+  "RUSTSEC-2024-0420", # gtk-sys: unmaintained
+  "RUSTSEC-2024-0429", # glib: unsound API, Linux-only and not shipped
+  "RUSTSEC-2024-0370", # proc-macro-error, reachable only through Linux glib
+
+  # Tauri 2.11.5 -> tauri-utils 2.9.3 -> urlpattern 0.3.0 currently pins the
+  # unmaintained `unic-*` family on every target. These are informational
+  # maintenance advisories, not reported vulnerabilities or unsoundness.
+  # There is no direct application dependency to replace; remove these exact
+  # exceptions as soon as upstream Tauri/urlpattern migrates.
+  "RUSTSEC-2025-0075", # unic-char-range
+  "RUSTSEC-2025-0080", # unic-common
+  "RUSTSEC-2025-0081", # unic-char-property
+  "RUSTSEC-2025-0098", # unic-ucd-version
+  "RUSTSEC-2025-0100", # unic-ucd-ident
+]
+
+[output]
+# Explicitly keep every non-ignored informational category release-blocking.
+deny = ["unmaintained", "unsound", "yanked"]
+format = "terminal"
+quiet = false
+show_tree = true
+
+[yanked]
+enabled = true
+update_index = true

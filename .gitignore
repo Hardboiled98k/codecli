@@ -1,0 +1,42 @@
+# JavaScript / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Rust / Tauri build outputs
+src-tauri/target/
+
+# Logs and temporary files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python tooling occasionally used by contributors
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Packaged desktop artifacts
+*.dmg
+*.msi
+*.exe
+*.pkg
+*.app/
+
+# Editors and local agent state
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.playwright-mcp/
+.claude/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

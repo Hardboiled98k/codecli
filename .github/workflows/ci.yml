@@ -1,0 +1,144 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22.19.0
+  PNPM_VERSION: 11.13.0
+  RUST_VERSION: 1.94.0
+
+jobs:
+  source-scan:
+    name: Source hygiene and secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install pinned scanners
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOBIN="$RUNNER_TEMP/bin" go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          GOBIN="$RUNNER_TEMP/bin" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Reject private-service and remote-control residue
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in assist-server license-server deploy release scripts; do
+            if [[ -e "$path" ]]; then
+              echo "Forbidden private tree is present: $path" >&2
+              exit 1
+            fi
+          done
+          if git grep -n -I -i -E \
+            '(assist-server|license-server|headscale|CODECLI_(ASSIST|LICENSE|HEADSCALE|OPERATOR_SSH))' \
+            -- src src-tauri/src src-tauri/Cargo.toml src-tauri/tauri.conf.json \
+            package.json pnpm-workspace.yaml vite.config.ts index.html public; then
+            echo 'Private service, production endpoint, or remote-control identifier remains in executable/build inputs.' >&2
+            exit 1
+          fi
+          if git grep -n -I -i -E \
+            '(远程协助|remote[ _-]?(assist|control)|tailscale|preauth|CODECLI_(JOIN|REMOTE|OPERATOR_SSH))' \
+            -- src src-tauri/src; then
+            echo 'Remote-control implementation remains in application source.' >&2
+            exit 1
+          fi
+      - name: Validate workflow syntax
+        shell: bash
+        run: actionlint -no-color .github/workflows/*.yml
+      - name: Scan tracked history for secrets
+        shell: bash
+        run: gitleaks git . --no-banner --redact --exit-code 1 --timeout 60
+
+  dependency-audit:
+    name: npm and Cargo dependency audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Audit locked JavaScript dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global "pnpm@${PNPM_VERSION}"
+          pnpm install --frozen-lockfile
+          pnpm --registry=https://registry.npmjs.org audit --prod --audit-level high
+      - name: Audit locked Rust dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "${RUST_VERSION}" --profile minimal
+          rustup default "${RUST_VERSION}"
+          cargo install cargo-audit --version 0.22.2 --locked
+          cargo audit --file src-tauri/Cargo.lock --deny warnings
+
+  cross-platform:
+    name: ${{ matrix.label }} build, test, format and lint
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS
+            os: macos-14
+          - label: Windows
+            os: windows-2022
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install pinned toolchains and dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global "pnpm@${PNPM_VERSION}"
+          rustup toolchain install "${RUST_VERSION}" --profile minimal --component rustfmt,clippy
+          rustup default "${RUST_VERSION}"
+          pnpm install --frozen-lockfile
+      - name: Check formatting
+        shell: bash
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+      - name: Build web application
+        shell: bash
+        run: pnpm build
+      - name: Test and statically analyze Rust
+        shell: bash
+        working-directory: src-tauri
+        run: |
+          set -euo pipefail
+          cargo check --all-targets --locked
+          cargo test --all-targets --locked
+          cargo clippy --all-targets --locked -- -D warnings
+      - name: Build unsigned desktop application
+        shell: bash
+        run: pnpm tauri build --ci --no-bundle

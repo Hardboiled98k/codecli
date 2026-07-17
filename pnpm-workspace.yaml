@@ -1,0 +1,7 @@
+packages:
+  - .
+
+# pnpm 11 默认拒绝依赖生命周期脚本。这里只允许 Vite 构建链必需的
+# esbuild 原生二进制校验/安装；新增项必须单独安全审查。
+allowBuilds:
+  esbuild: true

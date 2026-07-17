@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞 / Security vulnerability
+    url: https://github.com/Hardboiled98k/codecli/blob/main/SECURITY.md
+    about: 请勿公开漏洞细节或密钥；请按安全政策私下报告。
+  - name: 社区支持边界 / Support policy
+    url: https://github.com/Hardboiled98k/codecli/blob/main/SUPPORT.md
+    about: 提交问题前请先阅读支持范围和敏感信息规则。

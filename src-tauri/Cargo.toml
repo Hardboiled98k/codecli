@@ -1,0 +1,40 @@
+[package]
+name = "codecli-installer"
+version = "1.0.0"
+description = "开源的 Claude Code 与 Codex CLI 桌面安装、配置、诊断和维护工具"
+authors = ["南京孤岛网络科技有限公司"]
+license = "MPL-2.0"
+repository = "https://github.com/Hardboiled98k/codecli"
+homepage = "https://gudao.best"
+edition = "2021"
+
+[lib]
+name = "codecli_installer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+url = "2"
+toml_edit = "0.22"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+flate2 = "1.1"
+tar = "0.4"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Registry", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

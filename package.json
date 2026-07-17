@@ -1,0 +1,45 @@
+{
+  "name": "codecli-installer",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.13.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "check": "pnpm build && cargo check --manifest-path src-tauri/Cargo.toml --all-targets --locked",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked",
+    "format:check": "cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check",
+    "lint": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "clsx": "^2.1.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "tailwindcss": "^4.3.2",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  },
+  "description": "开源的 Claude Code 与 Codex CLI 桌面安装、配置、诊断和维护工具",
+  "license": "MPL-2.0",
+  "author": "南京孤岛网络科技有限公司",
+  "homepage": "https://github.com/Hardboiled98k/codecli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hardboiled98k/codecli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hardboiled98k/codecli/issues"
+  }
+}

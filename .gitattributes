@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+# Release and security hashes must not depend on a contributor's autocrlf.
+*.ps1 text eol=lf
+*.sh text eol=lf
+
+*.icns binary
+*.ico binary
+*.png binary

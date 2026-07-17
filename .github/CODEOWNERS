@@ -1,0 +1,8 @@
+# Default review owner
+* @Hardboiled98k
+
+# Security- and release-sensitive areas
+/.github/ @Hardboiled98k
+/src-tauri/ @Hardboiled98k
+/SECURITY.md @Hardboiled98k
+/LICENSE @Hardboiled98k

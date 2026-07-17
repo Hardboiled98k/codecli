@@ -1,0 +1,48 @@
+name: Feature Request
+description: 建议一个符合社区版边界的新功能
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        大型功能、新网络请求或新增依赖应先讨论设计。社区版不接受远程控制、静默遥测或运营方激活 DRM。
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 Issue 和 Pull Request。
+          required: true
+        - label: 该建议不要求远程控制、静默遥测、密钥收集或鉴权绕过。
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 请描述用户场景，而不只是指定实现。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 请说明交互、平台范围和失败时如何恢复。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已考虑的替代方案
+  - type: textarea
+    id: security_privacy
+    attributes:
+      label: 安全与隐私影响
+      description: 是否增加网络请求、依赖、文件写入、提权或敏感数据处理？
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 其他背景
