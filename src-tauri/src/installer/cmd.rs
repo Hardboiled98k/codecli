@@ -781,11 +781,15 @@ mod tests {
     fn windows_run_timed_rejects_background_job_member_with_closed_pipes() {
         clear_cancel();
         let mut command = Command::new("cmd.exe");
+        // 不能在参数里嵌套双引号：Rust 会转义成 `\"`，而 cmd.exe 不认
+        // 反斜杠转义，start 会退化为 ShellExecute 一个不存在的文件并
+        // 弹出隐藏错误框，外层 cmd 永不退出。改用无引号形式；外层
+        // cmd 消费一层 `^` 转义后，重定向由 start 拉起的内层 cmd 执行。
         command.args([
             "/D",
             "/S",
             "/C",
-            "start \"\" /B cmd.exe /D /S /C \"ping -n 30 127.0.0.1 ^>NUL 2^>^&1\"",
+            "start /B cmd.exe /D /C ping -n 30 127.0.0.1 ^>NUL 2^>^&1",
         ]);
         let error =
             run_timed(command, 10).expect_err("background Windows job member must fail closed");

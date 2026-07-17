@@ -198,9 +198,58 @@ fn validate_private_directory(path: &Path, label: &str) -> Result<(), String> {
 }
 
 fn sync_directory(path: &Path, label: &str) -> Result<(), String> {
-    open_directory_nofollow(path, label)?
-        .sync_all()
-        .map_err(|e| format!("fsync {} 失败: {}", label, e))
+    #[cfg(windows)]
+    {
+        // Windows 的 read-only directory handle 上 FlushFileBuffers 会
+        // ERROR_ACCESS_DENIED。发布 rename 改由下方
+        // MoveFileExW(MOVEFILE_WRITE_THROUGH) 在返回前落盘；不用一个
+        // 必然失败的目录 flush 阻断所有 Windows 备份。
+        let _ = (path, label);
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        open_directory_nofollow(path, label)?
+            .sync_all()
+            .map_err(|e| format!("fsync {} 失败: {}", label, e))
+    }
+}
+
+/// 同目录内把已 fsync 的 staging 快照原子发布为最终目录。
+/// 目标已在调用方复核为不存在；Unix 依赖 rename + 父目录 fsync，
+/// Windows 用 MOVEFILE_WRITE_THROUGH 让 move 在 API 返回前持久化。
+fn rename_publish_durable(source: &Path, destination: &Path, id: &str) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_WRITE_THROUGH};
+        let source_wide: Vec<u16> = source.as_os_str().encode_wide().chain(Some(0)).collect();
+        let destination_wide: Vec<u16> = destination
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
+        // 不带 MOVEFILE_REPLACE_EXISTING：目标已存在时原子失败。
+        let result = unsafe {
+            MoveFileExW(
+                source_wide.as_ptr(),
+                destination_wide.as_ptr(),
+                MOVEFILE_WRITE_THROUGH,
+            )
+        };
+        if result != 0 {
+            return Ok(());
+        }
+        Err(format!(
+            "原子发布备份 {} 失败: {}",
+            id,
+            std::io::Error::last_os_error()
+        ))
+    }
+    #[cfg(not(windows))]
+    {
+        std::fs::rename(source, destination).map_err(|e| format!("原子发布备份 {} 失败: {}", id, e))
+    }
 }
 
 fn backups_root() -> Result<PathBuf, String> {
@@ -765,8 +814,7 @@ fn publish_backup_at_root(
             Ok(_) => return Err(format!("发布前发现备份 id 已被占用: {}", id)),
             Err(e) => return Err(format!("发布前复核备份 id 失败: {}", e)),
         }
-        std::fs::rename(&staging, &final_dir)
-            .map_err(|e| format!("原子发布备份 {} 失败: {}", id, e))?;
+        rename_publish_durable(&staging, &final_dir, id)?;
         published = true;
         sync_directory(root, "备份根目录")?;
 

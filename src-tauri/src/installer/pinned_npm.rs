@@ -526,9 +526,14 @@ fn ensure_real_directory_chain(path: &Path) -> Result<(), String> {
     let mut current = PathBuf::new();
     for component in path.components() {
         match component {
-            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
-                current.push(component.as_os_str())
+            Component::Prefix(_) => {
+                // `\\?\C:` 这类裸前缀不是目录路径：对它做 metadata 会打开
+                // 卷句柄并报 ERROR_INVALID_FUNCTION。前缀本身无需校验，
+                // 紧随其后的根目录组件会以 `\\?\C:\` 形式接受同样检查。
+                current.push(component.as_os_str());
+                continue;
             }
+            Component::RootDir | Component::Normal(_) => current.push(component.as_os_str()),
             Component::CurDir | Component::ParentDir => return Err("目录路径包含 ./..".into()),
         }
         match std::fs::symlink_metadata(&current) {
