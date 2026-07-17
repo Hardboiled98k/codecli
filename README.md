@@ -1,6 +1,7 @@
 # CodeCLI
 
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/Hardboiled98k/codecli/actions/workflows/ci.yml/badge.svg)](https://github.com/Hardboiled98k/codecli/actions/workflows/ci.yml)
 
 CodeCLI 是一个面向 macOS 与 Windows 的开源桌面安装、配置和自检工具，帮助用户在自己的电脑上安装与管理 Claude Code、Codex CLI 等命令行开发工具。
 
@@ -40,9 +41,9 @@ CodeCLI 仍会按用户选择访问必要的第三方网络资源，例如下载
 
 ## 当前状态
 
-项目处于社区公开初期。源码可供审计和参与开发，但在首个经过 CI 验证、签名并发布的版本出现前，不应把任意第三方构建视为“官方安装包”。
+项目处于社区公开初期。源码可供审计和参与开发，但在首个由本仓库 CI 构建并发布到 GitHub Releases 的版本出现前，不应把任意第三方构建视为“官方安装包”。
 
-仅从本仓库 GitHub Releases 获取官方发布物，并自行核对发布页提供的校验与签名信息。任何 fork 或第三方分发均由其发布者负责。
+仅从本仓库 GitHub Releases 获取官方发布物，并用发布页附带的 `SHA256SUMS.txt` 核对哈希。当前发布物由 GitHub Actions 构建、**未做商业代码签名**：macOS 首次打开需在「系统设置 → 隐私与安全性」允许（或右键 App 选择打开），Windows SmartScreen 提示时需选择「仍要运行」。任何 fork 或第三方分发均由其发布者负责。
 
 ## 开发
 

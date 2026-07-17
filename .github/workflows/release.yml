@@ -1,0 +1,139 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: 22.19.0
+  PNPM_VERSION: 11.13.0
+  RUST_VERSION: 1.94.0
+
+jobs:
+  build:
+    name: ${{ matrix.label }} unsigned bundle
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - label: macOS-arm64
+            os: macos-14
+          - label: Windows-x64
+            os: windows-2022
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Verify tag matches source versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          conf_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          cargo_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -n 1)"
+          for source_version in "$pkg_version" "$conf_version" "$cargo_version"; do
+            if [[ "$tag_version" != "$source_version" ]]; then
+              echo "Tag $GITHUB_REF_NAME does not match package.json=$pkg_version tauri.conf.json=$conf_version Cargo.toml=$cargo_version" >&2
+              exit 1
+            fi
+          done
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install pinned toolchains and dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global "pnpm@${PNPM_VERSION}"
+          rustup toolchain install "${RUST_VERSION}" --profile minimal
+          rustup default "${RUST_VERSION}"
+          pnpm install --frozen-lockfile
+      - name: Build unsigned bundles
+        shell: bash
+        run: pnpm tauri build --ci
+      - name: Collect and checksum artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p out
+          bundle_dir="src-tauri/target/release/bundle"
+          case "${{ matrix.label }}" in
+            macOS-arm64)
+              dmg="$(find "$bundle_dir/dmg" -maxdepth 1 -name '*.dmg' -print -quit)"
+              [[ -n "$dmg" ]] || { echo "No dmg produced" >&2; exit 1; }
+              cp "$dmg" "out/codecli-community-${version}-macos-arm64.dmg"
+              ;;
+            Windows-x64)
+              setup="$(find "$bundle_dir/nsis" -maxdepth 1 -name '*.exe' -print -quit)"
+              msi="$(find "$bundle_dir/msi" -maxdepth 1 -name '*.msi' -print -quit)"
+              [[ -n "$setup" && -n "$msi" ]] || { echo "Missing nsis or msi bundle" >&2; exit 1; }
+              cp "$setup" "out/codecli-community-${version}-windows-x64-setup.exe"
+              cp "$msi" "out/codecli-community-${version}-windows-x64.msi"
+              ;;
+          esac
+          cd out
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -- * > "checksums-${{ matrix.label }}.sha256"
+          else
+            shasum -a 256 -- * > "checksums-${{ matrix.label }}.sha256"
+          fi
+          cat "checksums-${{ matrix.label }}.sha256"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bundles-${{ matrix.label }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Draft GitHub release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Assemble checksums and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts
+          cat checksums-*.sha256 | sort -k2 > SHA256SUMS.txt
+          rm -f checksums-*.sha256
+          ls -l
+          {
+            echo "## 校验与安装说明"
+            echo
+            echo "- 本发布物由 GitHub Actions 从本仓库标签源码构建，**未做商业代码签名**："
+            echo "  macOS 首次打开需在「系统设置 → 隐私与安全性」允许，或右键 App 选择打开；"
+            echo "  Windows SmartScreen 提示时需选择「仍要运行」。"
+            echo "- 下载后请先用 \`SHA256SUMS.txt\` 核对哈希，再运行安装包。"
+            echo "- 源码与构建日志见本次 release 关联的 Actions run。"
+          } > NOTES.md
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --verify-tag \
+            --title "CodeCLI Community $GITHUB_REF_NAME" \
+            --notes-file artifacts/NOTES.md \
+            artifacts/*
