@@ -3150,7 +3150,7 @@ mod tests {
             // 产品校验要求 extensionless/.cmd/.ps1 三份 launcher 与已审计
             // cmd-shim 模板整文件一致；夹具用产品生成器创建，而不是
             // 手写一份近似 .cmd。
-            super::runtime::create_and_validate_cli_launchers(
+            crate::installer::runtime::create_and_validate_cli_launchers(
                 &prefix,
                 "lark-cli",
                 &package.join("scripts").join("run.js"),
