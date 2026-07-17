@@ -3147,9 +3147,13 @@ mod tests {
         }
         #[cfg(windows)]
         {
-            std::fs::write(
-                bin.join("lark-cli.cmd"),
-                b"node %~dp0%/node_modules/@larksuite/cli/scripts/run.js %*",
+            // 产品校验要求 extensionless/.cmd/.ps1 三份 launcher 与已审计
+            // cmd-shim 模板整文件一致；夹具用产品生成器创建，而不是
+            // 手写一份近似 .cmd。
+            super::runtime::create_and_validate_cli_launchers(
+                &prefix,
+                "lark-cli",
+                &package.join("scripts").join("run.js"),
             )
             .unwrap();
         }
