@@ -1,0 +1,33 @@
+name: Dependabot auto-merge
+
+# Enables auto-merge for Dependabot patch/minor updates. The merge only lands
+# once the required status checks on `main` pass; major updates are left for
+# manual review.
+#
+# `pull_request_target` is required: on `pull_request` events raised by
+# Dependabot the GITHUB_TOKEN is read-only. This workflow never checks out the
+# pull request contents, so untrusted code is not executed.
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge for Dependabot
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
