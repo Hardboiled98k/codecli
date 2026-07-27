@@ -963,7 +963,7 @@ fn fingerprint_package_tree(path: &Path) -> Result<String, String> {
         total: 0,
     };
     hash_tree_directory(path, path, 0, &mut state, &mut hasher)?;
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 fn fingerprint_launcher(path: &Path) -> Result<String, String> {
@@ -1010,7 +1010,7 @@ fn fingerprint_launcher(path: &Path) -> Result<String, String> {
         let _ = metadata;
         return Err("当前平台无已审计 launcher 指纹实现".into());
     }
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 pub(crate) fn validate_receipt_shape(
@@ -2818,7 +2818,7 @@ mod tests {
                 }
                 hasher.update(&buffer[..read]);
             }
-            format!("{:x}", hasher.finalize())
+            hex::encode(hasher.finalize())
         }
 
         let root = TestDir::new("live-feishu");
