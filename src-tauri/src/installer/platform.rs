@@ -1336,10 +1336,10 @@ fn finalize_windows_env_unset<T>(
 fn flush_registry_key_windows(key: &winreg::RegKey) -> Result<(), String> {
     use windows_sys::Win32::System::Registry::RegFlushKey;
 
-    // winreg 0.52 使用 windows-sys 0.48（HKEY=isize），本 crate 的
-    // windows-sys 0.61 使用等价的 opaque pointer；这里只做句柄值转换。
+    // winreg 0.55 与本 crate 同用 windows-sys 的 opaque pointer HKEY，
+    // 句柄类型已一致，无需再做转换。
     // SAFETY: raw_handle 在 key 生命周期内有效，RegFlushKey 不接管句柄。
-    let status = unsafe { RegFlushKey(key.raw_handle() as *mut core::ffi::c_void) };
+    let status = unsafe { RegFlushKey(key.raw_handle()) };
     if status == 0 {
         Ok(())
     } else {
