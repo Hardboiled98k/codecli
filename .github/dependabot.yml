@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
       day: monday
       time: "02:00"
       timezone: Asia/Shanghai
@@ -16,7 +16,7 @@ updates:
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
-      interval: weekly
+      interval: monthly
       day: monday
       time: "02:15"
       timezone: Asia/Shanghai
@@ -29,8 +29,12 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
       day: monday
       time: "02:30"
       timezone: Asia/Shanghai
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
