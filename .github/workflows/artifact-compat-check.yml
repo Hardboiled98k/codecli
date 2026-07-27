@@ -1,0 +1,137 @@
+name: artifact compat check
+
+# 一次性验证 workflow —— 验完即删。
+#
+# 背景：release.yml 只在 `push tags: v*` 时触发，PR CI 永远跑不到它，所以
+# upload-artifact 4.6.2→7.0.1 / download-artifact 4.3.0→8.0.1 这两个跨大版本
+# 升级（PR #10）至今零执行，第一次真跑会是在正式发版当天、签名+公证之后。
+#
+# 本 workflow 用**与 release.yml 完全相同的 pinned SHA 和参数**复刻那两步，
+# 但跳过构建/签名/公证，只用假产物验 artifact 行为是否仍然兼容。
+#
+# 重点验 `merge-multiple: true`：它必须把多个 artifact 的内容**平铺**进同一目录。
+# 若 v8 改成按 artifact 名建子目录，release.yml 下游的
+# `cd artifacts && cat checksums-*.sha256` 就会匹配不到文件 —— 发版当场挂。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.label }} fake bundle
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - label: macOS-arm64
+            os: macos-14
+          - label: Windows-x64
+            os: windows-2022
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      # 复刻 release.yml "Collect and checksum artifacts" 的产物形状，
+      # 只是产物内容是假的（不构建）。
+      - name: Fake collect and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="0.0.0-compat-test"
+          mkdir -p out
+          case "${{ matrix.label }}" in
+            macOS-arm64)
+              echo "fake dmg payload" > "out/codecli-community-${version}-macos-arm64.dmg"
+              ;;
+            Windows-x64)
+              echo "fake nsis payload" > "out/codecli-community-${version}-windows-x64-setup.exe"
+              ;;
+          esac
+          cd out
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -- * > "checksums-${{ matrix.label }}.sha256"
+          else
+            shasum -a 256 -- * > "checksums-${{ matrix.label }}.sha256"
+          fi
+          cat "checksums-${{ matrix.label }}.sha256"
+
+      # ↓ 与 release.yml:127-133 完全一致（同 SHA、同参数）
+      - name: Upload artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bundles-${{ matrix.label }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 14
+
+  verify:
+    name: Verify download and merge behaviour
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # ↓ 与 release.yml:141-145 完全一致（同 SHA、同参数）
+      - name: Download artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Assert release.yml assumptions still hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== 下载结果树 ==="
+          find artifacts -type f | sort
+          echo
+
+          fail=0
+
+          # 断言 1：merge-multiple 必须平铺，不能建 per-artifact 子目录。
+          # release.yml 下游是 `cd artifacts && cat checksums-*.sha256`，
+          # 一旦变成 artifacts/bundles-*/ 结构就会失败。
+          if [ -d artifacts/bundles-macOS-arm64 ] || [ -d artifacts/bundles-Windows-x64 ]; then
+            echo "❌ merge-multiple 行为变了：产生了 per-artifact 子目录，release.yml 的 glob 会失效"
+            fail=1
+          else
+            echo "✅ merge-multiple 仍平铺到同一目录"
+          fi
+
+          # 断言 2：两个平台的 checksums 都在，且 glob 匹配得到
+          n_sums=$(ls artifacts/checksums-*.sha256 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$n_sums" != "2" ]; then
+            echo "❌ 期望 2 个 checksums-*.sha256，实得 $n_sums"
+            fail=1
+          else
+            echo "✅ checksums-*.sha256 命中 2 个"
+          fi
+
+          # 断言 3：两个平台的产物都在（release.yml 用 artifacts/codecli-community-* 上传到 release）
+          n_bundles=$(ls artifacts/codecli-community-* 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$n_bundles" != "2" ]; then
+            echo "❌ 期望 2 个 codecli-community-* 产物，实得 $n_bundles"
+            fail=1
+          else
+            echo "✅ codecli-community-* 命中 2 个"
+          fi
+
+          # 断言 4：完整复刻 release.yml 的汇总逻辑，确认它能跑通
+          cd artifacts
+          cat checksums-*.sha256 | sort -k2 > SHA256SUMS.txt
+          rm -f checksums-*.sha256
+          echo
+          echo "=== 复刻 release.yml 汇总后的 SHA256SUMS.txt ==="
+          cat SHA256SUMS.txt
+          lines=$(wc -l < SHA256SUMS.txt | tr -d ' ')
+          if [ "$lines" != "2" ]; then
+            echo "❌ SHA256SUMS.txt 期望 2 行，实得 $lines"
+            fail=1
+          else
+            echo "✅ 汇总产出 2 行，与两平台一致"
+          fi
+
+          echo
+          [ "$fail" = "0" ] && echo "🟢 release.yml 的 artifact 假设在 upload@v7 / download@v8 下全部成立" \
+                            || { echo "🔴 有断言失败——发版前必须先修 release.yml"; exit 1; }
